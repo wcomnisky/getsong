@@ -11,9 +11,7 @@ func main() {
 	if len(os.Args) != 3 {
 		fmt.Println(`Usage:
 		
-getsong 'title of song' 'artist of song'
-
-`)
+getsong 'title of song' 'artist of song'`)
 		os.Exit(1)
 	}
 	fname, err := getsong.GetSong(os.Args[1], os.Args[2], getsong.Options{
