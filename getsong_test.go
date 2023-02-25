@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/iawia002/annie/extractors/types"
-	"github.com/iawia002/annie/extractors/youtube"
+	"github.com/iawia002/lux/extractors"
+	"github.com/iawia002/lux/extractors/youtube"
 	log "github.com/schollz/logger"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUseAnnie(t *testing.T) {
-	datas, err := youtube.New().Extract("https://www.youtube.com/watch?v=qxiOMm_x3Xg", types.Options{})
+	datas, err := youtube.New().Extract("https://www.youtube.com/watch?v=qxiOMm_x3Xg", extractors.Options{})
 	assert.Nil(t, err)
 	biggestSize := int64(0)
 	bestURL := ""
@@ -93,25 +93,25 @@ func TestGetMusicVideoID(t *testing.T) {
 	id, err = GetMusicVideoID("movies", "Weyes Blood")
 	log.Infof("movies: %s", id)
 	assert.Nil(t, err)
-	assert.True(t, "RFtRq6t3jOo" == id || "xniRJsus8pk" == id)
+	assert.True(t, id == "RFtRq6t3jOo" || id == "xniRJsus8pk")
 
 	// this one is trick because its the second result
 	id, err = GetMusicVideoID("old records", "allen toussaint")
 	log.Infof("old records: %s", id)
 	assert.Nil(t, err)
-	assert.True(t, "oa6KzRfvtAs" == id || "obtJEJ4VPmk" == id)
+	assert.True(t, id == "oa6KzRfvtAs" || id == "obtJEJ4VPmk")
 
 	// try one with puncuation
 	id, err = GetMusicVideoID("hey, ma", "bon iver")
 	log.Infof("hey, ma: %s", id)
 	assert.Nil(t, err)
-	assert.True(t, "HDAKS18Gv1U" == id)
+	assert.True(t, id == "HDAKS18Gv1U")
 
 	// skip the most popular result to get the provided to youtube version
 	id, err = GetMusicVideoID("true", "spandau ballet")
 	log.Infof("true: %s", id)
 	assert.Nil(t, err)
-	assert.True(t, "ITX-SEsyGRg" == id || "2H1N6KdU-L0" == id || "sWBueqYA2Es" == id || "TVeSwMMvkP4" == id)
+	assert.True(t, id == "ITX-SEsyGRg" || id == "2H1N6KdU-L0" || id == "sWBueqYA2Es" || id == "TVeSwMMvkP4")
 
 	// pick one that is not the first
 	id, err = GetMusicVideoID("i know what love is", "don white")

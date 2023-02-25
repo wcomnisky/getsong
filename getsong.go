@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -19,8 +18,10 @@ import (
 	"time"
 
 	"github.com/bogem/id3v2"
-	"github.com/iawia002/annie/extractors/types"
-	"github.com/iawia002/annie/extractors/youtube"
+	// "github.com/iawia002/lux/extractors/types"
+
+	"github.com/iawia002/lux/extractors"
+	"github.com/iawia002/lux/extractors/youtube"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log "github.com/schollz/logger"
@@ -227,7 +228,7 @@ func ParseDurationString(s string) (milliseconds int64) {
 // downloadYouTube downloads a youtube video and saves using the filename. Returns the filename with the extension.
 func downloadYouTube(youtubeID string, filename string) (downloadedFilename string, err error) {
 	for i := 0; i < 5; i++ {
-		datas, err := youtube.New().Extract("https://www.youtube.com/watch?v="+youtubeID, types.Options{})
+		datas, err := youtube.New().Extract("https://www.youtube.com/watch?v="+youtubeID, extractors.Options{})
 		if err != nil {
 			log.Trace(err)
 			continue
@@ -252,7 +253,7 @@ func downloadYouTube(youtubeID string, filename string) (downloadedFilename stri
 		log.Debugf("trying %d time", i)
 		log.Debugf("downloading %s", downloadURL)
 		if err != nil {
-			err = fmt.Errorf("Unable to get download url: %s", err.Error())
+			err = fmt.Errorf("unable to get download url: %s", err.Error())
 			log.Error(err)
 			return "", err
 		}
@@ -330,6 +331,10 @@ func DownloadFromYouTube(downloadedFilename string, downloadURL string) (err err
 				out = io.MultiWriter(out, bar)
 			}
 			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				log.Error(err)
+				return
+			}
 		}(i, startRange, endRange, &wg, downloadURL, downloadedFilename)
 
 	}
@@ -459,6 +464,7 @@ func GetMusicVideoID(title string, artist string, notid ...string) (id string, e
 				var ytInfo YouTubeInfo
 				ytInfo, errGet = getYoutubeVideoInfo(j.ID)
 				if errGet != nil {
+					log.Errorf("error getting info for id %s: %s", j.ID, errGet)
 					results <- Result{
 						Job: j,
 						Err: err,
@@ -605,7 +611,7 @@ func getFfmpegBinary() (locationToBinary string, err error) {
 	if runtime.GOOS == "windows" {
 		urlToDownload = "https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-4.1-win64-static.zip"
 	} else {
-		err = fmt.Errorf("Please install ffmpeg before continuing")
+		err = fmt.Errorf("please install ffmpeg before continuing")
 		return
 	}
 
@@ -624,9 +630,9 @@ func getFfmpegBinary() (locationToBinary string, err error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if err == nil {
-			err = fmt.Errorf("Received status code %d from download url", resp.StatusCode)
+			err = fmt.Errorf("received status code %d from download url", resp.StatusCode)
 		}
-		err = fmt.Errorf("Unable to start download: %s", err.Error())
+		err = fmt.Errorf("unable to start download: %s", err.Error())
 		return
 	}
 	defer resp.Body.Close()
@@ -715,19 +721,19 @@ type YouTubeInfo struct {
 }
 
 func getYoutubeVideoInfo(id string) (ytInfo YouTubeInfo, err error) {
-	youtubeSearchURL := fmt.Sprintf(
-		`https://www.youtube.com/watch?v=%s`,
-		id,
-	)
-	log.Tracef("getting ytinfo for url: %s", youtubeSearchURL)
+
+	youtubeSearchURL := fmt.Sprintf(`https://www.youtube.com/watch?v=%s`, id)
+	log.Debugf("getting ytinfo for url: %s", youtubeSearchURL)
 
 	html, err := getPage(youtubeSearchURL)
 	if err != nil {
+		log.Errorf("unable to get youtube info: %s", err.Error())
 		return
 	}
 
 	ytInfo.ID = id
 	for _, line := range strings.Split(html, "\n") {
+		//todo: make this more efficient; splitting the html into lines returns false positives
 		line = strings.TrimSpace(line)
 		if strings.Contains(line, `meta property="og:title"`) {
 			ytInfo.Title = getStringInBetween(line, `content="`, `"`)
@@ -736,7 +742,11 @@ func getYoutubeVideoInfo(id string) (ytInfo YouTubeInfo, err error) {
 			return
 		}
 	}
-	err = fmt.Errorf("could not find info")
+
+	if ytInfo.Title == "" {
+		err = fmt.Errorf("could not find info")
+	}
+
 	return
 }
 
@@ -756,7 +766,7 @@ func getPage(urlToGet string) (html string, err error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		bodyBytes, err2 := ioutil.ReadAll(resp.Body)
+		bodyBytes, err2 := io.ReadAll(resp.Body)
 		if err2 != nil {
 			err = err2
 			return
